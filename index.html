@@ -1,0 +1,1175 @@
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Krishi Schemes API Test</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background: linear-gradient(135deg, #43cea2, #185a9d);
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: auto;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+      overflow: hidden;
+    }
+    .header {
+      background: #2E7D32;
+      color: white;
+      padding: 25px;
+      text-align: center;
+    }
+    .header h1 { margin: 0; font-size: 2em; }
+    .form-section { padding: 25px; }
+    .form-group { margin-bottom: 15px; }
+    label { font-weight: 600; display: block; margin-bottom: 6px; }
+    input, select, button {
+      width: 100%; padding: 10px; border-radius: 8px;
+      border: 2px solid #ddd; font-size: 15px;
+    }
+    input:focus, select:focus { border-color: #4CAF50; outline: none; }
+    button {
+      background: #4CAF50; color: white; border: none;
+      cursor: pointer; font-weight: bold; transition: 0.3s;
+    }
+    button:hover { background: #388e3c; }
+    .api-status, .error, .loading, .result-section {
+      margin-top: 15px; padding: 15px; border-radius: 8px;
+    }
+    .api-status { background: #e8f5e8; text-align: center; }
+    .error { background: #ffebee; color: #c62828; display: none; }
+    .loading { display: none; text-align: center; }
+    .spinner {
+      border: 4px solid #f3f3f3; border-top: 4px solid #4CAF50;
+      border-radius: 50%; width: 40px; height: 40px;
+      animation: spin 1s linear infinite; margin: auto;
+    }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+    .result-section { display: none; }
+    .result-box {
+      background: #f9f9f9; border: 2px solid #eee;
+      padding: 20px; border-radius: 10px;
+      white-space: pre-wrap; line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🌾 Krishi Schemes</h1>
+      <p>Check Government Schemes for Farmers</p>
+    </div>
+
+    <div class="form-section">
+      <div id="apiStatus" class="api-status">Checking API status...</div>
+
+      <div class="form-group">
+        <label for="state">🏢 State</label>
+        <input type="text" id="state" placeholder="e.g. Telangana">
+      </div>
+
+      <div class="form-group">
+        <label for="district">📍 District</label>
+        <input type="text" id="district" placeholder="e.g. Hyderabad">
+      </div>
+
+      <div class="form-group">
+        <label for="pincode">📮 Pincode</label>
+        <input type="text" id="pincode" placeholder="e.g. 500001">
+      </div>
+
+      <div class="form-group">
+        <label for="cropType">🌾 Crop Type</label>
+        <select id="cropType">
+          <option value="Rice">Rice</option>
+          <option value="Wheat">Wheat</option>
+          <option value="Tomato">Tomato</option>
+          <option value="Cotton">Cotton</option>
+          <option value="Sugarcane">Sugarcane</option>
+          <option value="Potato">Potato</option>
+          <option value="Pulses">Pulses</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="language">🌐 Output Language</label>
+        <select id="language">
+          <option value="English">English</option>
+          <option value="Hindi">Hindi</option>
+          <option value="Bengali">Bengali</option>
+          <option value="Tamil">Tamil</option>
+          <option value="Telugu">Telugu</option>
+          <option value="Marathi">Marathi</option>
+          <option value="Gujarati">Gujarati</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label><input type="checkbox" id="useAI" checked> Use Gemini AI</label>
+      </div>
+
+      <button onclick="analyzeSchemes()">🚀 Get Schemes</button>
+      <div class="error" id="errorMessage"></div>
+      <div class="loading" id="loading"><div class="spinner"></div><p>Fetching schemes...</p></div>
+
+      <div class="result-section" id="resultSection">
+        <h3>📊 Results</h3>
+        <div class="result-box" id="analysisResult"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE_URL = 'https://krishischemes-api.onrender.com';
+
+    window.addEventListener('load', checkAPIStatus);
+
+    async function checkAPIStatus() {
+      const statusElement = document.getElementById('apiStatus');
+      try {
+        const res = await fetch(`${API_BASE_URL}/health`);
+        const data = await res.json();
+        if (data.status === 'healthy') {
+          statusElement.innerHTML = `✅ API Healthy | Gemini Available: ${data.gemini_available}`;
+          statusElement.style.background = '#e8f5e8';
+        } else {
+          statusElement.innerHTML = '⚠️ API running but health check failed';
+          statusElement.style.background = '#fff3cd';
+        }
+      } catch (err) {
+        statusElement.innerHTML = `❌ Cannot connect: ${err.message}`;
+        statusElement.style.background = '#f8d7da';
+      }
+    }
+
+    async function analyzeSchemes() {
+      const state = document.getElementById('state').value;
+      const district = document.getElementById('district').value;
+      const pincode = document.getElementById('pincode').value;
+      const cropType = document.getElementById('cropType').value;
+      const language = document.getElementById('language').value;
+      const useAI = document.getElementById('useAI').checked;
+
+      document.getElementById('errorMessage').style.display = 'none';
+      document.getElementById('resultSection').style.display = 'none';
+      document.getElementById('loading').style.display = 'block';
+
+      try {
+        const formData = new FormData();
+        formData.append('state', state);
+        formData.append('district', district);
+        formData.append('pincode', pincode);
+        formData.append('crop_type', cropType);
+        formData.append('language', language);
+        formData.append('use_ai', useAI);
+
+        const res = await fetch(`${API_BASE_URL}/analyze`, {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(()=>{});
+          throw new Error(errData?.detail || `HTTP ${res.status}`);
+        }
+
+        const result = await res.json();
+        document.getElementById('analysisResult').textContent = result.analysis;
+        document.getElementById('resultSection').style.display = 'block';
+      } catch (err) {
+        const errBox = document.getElementById('errorMessage');
+        errBox.textContent = err.message;
+        errBox.style.display = 'block';
+      } finally {
+        document.getElementById('loading').style.display = 'none';
+      }
+    }
+  </script>
+</body>
+</html> -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HealthGuard AI - Misinformation Detection</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      color: #333;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #2c3e50, #34495e);
+      color: white;
+      padding: 40px;
+      text-align: center;
+      position: relative;
+    }
+
+    .header::after {
+      content: '';
+      position: absolute;
+      bottom: -50px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100px;
+      height: 100px;
+      background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%232c3e50"><path d="M12 2L1 21h22L12 2zm0 3.84L19.6 19H4.4L12 5.84z"/><path d="M12 11a1 1 0 00-1 1v4a1 1 0 002 0v-4a1 1 0 00-1-1zm0 8a1 1 0 100 2 1 1 0 000-2z"/></svg>') no-repeat;
+      background-size: contain;
+    }
+
+    .header h1 {
+      font-size: 2.8rem;
+      margin-bottom: 10px;
+      background: linear-gradient(90deg, #43cea2, #185a9d);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header p {
+      font-size: 1.1rem;
+      opacity: 0.9;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .main-content {
+      display: flex;
+      flex-wrap: wrap;
+      padding: 30px;
+      gap: 30px;
+    }
+
+    .left-panel {
+      flex: 1;
+      min-width: 300px;
+    }
+
+    .right-panel {
+      flex: 2;
+      min-width: 300px;
+    }
+
+    .card {
+      background: #f8f9fa;
+      border-radius: 15px;
+      padding: 25px;
+      margin-bottom: 25px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+      border: 1px solid #e9ecef;
+    }
+
+    .card h3 {
+      color: #2c3e50;
+      margin-bottom: 20px;
+      font-size: 1.4rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card h3 i {
+      color: #667eea;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #495057;
+      font-size: 0.95rem;
+    }
+
+    textarea {
+      width: 100%;
+      padding: 15px;
+      border: 2px solid #e9ecef;
+      border-radius: 10px;
+      font-family: inherit;
+      font-size: 1rem;
+      resize: vertical;
+      min-height: 150px;
+      transition: border-color 0.3s;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .options-group {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-top: 15px;
+    }
+
+    .option-item {
+      background: white;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #e9ecef;
+      cursor: pointer;
+      transition: all 0.3s;
+      text-align: center;
+    }
+
+    .option-item:hover {
+      border-color: #667eea;
+      transform: translateY(-2px);
+    }
+
+    .option-item.active {
+      background: #667eea;
+      color: white;
+      border-color: #667eea;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 15px;
+      margin-top: 25px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      flex: 1;
+      padding: 15px 25px;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      min-width: 150px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-secondary {
+      background: #f8f9fa;
+      color: #495057;
+      border: 2px solid #e9ecef;
+    }
+
+    .btn-secondary:hover {
+      background: #e9ecef;
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      font-size: 0.9rem;
+    }
+
+    .status-online {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+
+    .status-offline {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+
+    .result-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #e9ecef;
+    }
+
+    .risk-badge {
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .risk-low { background: #d4edda; color: #155724; }
+    .risk-medium { background: #fff3cd; color: #856404; }
+    .risk-high { background: #f8d7da; color: #721c24; }
+    .risk-critical { background: #721c24; color: white; }
+
+    .confidence-meter {
+      width: 100%;
+      height: 10px;
+      background: #e9ecef;
+      border-radius: 5px;
+      margin: 20px 0;
+      overflow: hidden;
+    }
+
+    .confidence-fill {
+      height: 100%;
+      border-radius: 5px;
+      transition: width 0.5s ease;
+    }
+
+    .meter-low { background: #28a745; }
+    .meter-medium { background: #ffc107; }
+    .meter-high { background: #dc3545; }
+    .meter-critical { background: #721c24; }
+
+    .result-content {
+      margin-top: 25px;
+    }
+
+    .result-section {
+      margin-bottom: 25px;
+      padding-bottom: 25px;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .result-section:last-child {
+      border-bottom: none;
+    }
+
+    .result-section h4 {
+      color: #495057;
+      margin-bottom: 12px;
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .issue-list {
+      list-style: none;
+    }
+
+    .issue-list li {
+      padding: 10px 15px;
+      margin-bottom: 8px;
+      background: white;
+      border-left: 4px solid #667eea;
+      border-radius: 0 8px 8px 0;
+    }
+
+    .evidence-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+    }
+
+    .evidence-item {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      border: 1px solid #e9ecef;
+      font-size: 0.9rem;
+    }
+
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 40px;
+    }
+
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .error-message {
+      display: none;
+      padding: 15px;
+      background: #f8d7da;
+      color: #721c24;
+      border-radius: 8px;
+      margin: 15px 0;
+      border-left: 4px solid #dc3545;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
+    }
+
+    .metric-card {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+      border: 1px solid #e9ecef;
+    }
+
+    .metric-value {
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin: 5px 0;
+    }
+
+    .metric-label {
+      font-size: 0.85rem;
+      color: #6c757d;
+    }
+
+    .history-item {
+      padding: 12px;
+      margin-bottom: 10px;
+      background: white;
+      border-radius: 8px;
+      border: 1px solid #e9ecef;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .history-item:hover {
+      border-color: #667eea;
+      transform: translateX(5px);
+    }
+
+    .history-item .preview {
+      font-size: 0.9rem;
+      color: #6c757d;
+      margin-top: 5px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 768px) {
+      .main-content {
+        flex-direction: column;
+      }
+      
+      .header h1 {
+        font-size: 2rem;
+      }
+      
+      .button-group {
+        flex-direction: column;
+      }
+      
+      button {
+        width: 100%;
+      }
+    }
+  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <h1>🏥 HealthGuard AI</h1>
+      <p>AI-powered health misinformation detection system</p>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <!-- Left Panel - Input & Controls -->
+      <div class="left-panel">
+        <!-- API Status -->
+        <div id="apiStatus" class="status-indicator">
+          <i class="fas fa-circle"></i>
+          <span>Checking API status...</span>
+        </div>
+
+        <!-- Input Card -->
+        <div class="card">
+          <h3><i class="fas fa-stethoscope"></i> Health Text Analysis</h3>
+          <div class="form-group">
+            <label for="healthText">Paste health-related text:</label>
+            <textarea 
+              id="healthText" 
+              placeholder="Example: 'COVID-19 vaccines contain microchips for government tracking! Big Pharma is hiding this secret!'"
+              rows="8"
+            ></textarea>
+          </div>
+
+          <!-- Quick Examples -->
+          <div class="form-group">
+            <label>Quick Examples:</label>
+            <div class="options-group" id="exampleButtons">
+              <div class="option-item" onclick="loadExample('misinfo')">
+                <i class="fas fa-virus"></i> Misinformation
+              </div>
+              <div class="option-item" onclick="loadExample('reliable')">
+                <i class="fas fa-shield-alt"></i> Reliable Info
+              </div>
+              <div class="option-item" onclick="loadExample('cancer')">
+                <i class="fas fa-prescription-bottle"></i> Cancer Claim
+              </div>
+              <div class="option-item" onclick="loadExample('vaccine')">
+                <i class="fas fa-syringe"></i> Vaccine Info
+              </div>
+            </div>
+          </div>
+
+          <!-- Analysis Options -->
+          <div class="form-group">
+            <label>Analysis Options:</label>
+            <div class="options-group">
+              <div class="option-item active" onclick="toggleOption('useAI')" id="useAIOption">
+                <i class="fas fa-robot"></i> Use AI Analysis
+              </div>
+              <div class="option-item" onclick="toggleOption('detailed')" id="detailedOption">
+                <i class="fas fa-chart-bar"></i> Detailed Metrics
+              </div>
+              <div class="option-item" onclick="toggleOption('batch')" id="batchOption">
+                <i class="fas fa-layer-group"></i> Batch Mode
+              </div>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="button-group">
+            <button class="btn-primary" onclick="analyzeHealthText()">
+              <i class="fas fa-search"></i> Analyze Text
+            </button>
+            <button class="btn-secondary" onclick="clearAnalysis()">
+              <i class="fas fa-eraser"></i> Clear
+            </button>
+          </div>
+
+          <!-- Batch Input (Hidden by Default) -->
+          <div id="batchSection" style="display: none; margin-top: 20px;">
+            <div class="form-group">
+              <label for="batchText">Multiple texts (one per line):</label>
+              <textarea 
+                id="batchText" 
+                placeholder="Enter multiple health texts, one per line..."
+                rows="4"
+              ></textarea>
+            </div>
+            <button class="btn-primary" onclick="analyzeBatch()" style="width: 100%;">
+              <i class="fas fa-layer-group"></i> Analyze Batch
+            </button>
+          </div>
+
+          <!-- Error Message -->
+          <div id="errorMessage" class="error-message"></div>
+
+          <!-- Loading Indicator -->
+          <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Analyzing health text for misinformation...</p>
+            <p class="small">This may take a few seconds</p>
+          </div>
+        </div>
+
+        <!-- History Card -->
+        <div class="card">
+          <h3><i class="fas fa-history"></i> Analysis History</h3>
+          <div id="historyList">
+            <!-- History items will be added here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Panel - Results -->
+      <div class="right-panel">
+        <!-- Results Card -->
+        <div class="card">
+          <h3><i class="fas fa-clipboard-check"></i> Analysis Results</h3>
+          
+          <!-- Result Header -->
+          <div id="resultHeader" class="result-header" style="display: none;">
+            <div>
+              <h2 id="verdictText">Loading...</h2>
+              <p id="confidenceText" style="color: #6c757d; margin-top: 5px;"></p>
+            </div>
+            <div id="riskBadge" class="risk-badge">Analyzing...</div>
+          </div>
+
+          <!-- Confidence Meter -->
+          <div id="confidenceMeter" class="confidence-meter" style="display: none;">
+            <div id="confidenceFill" class="confidence-fill" style="width: 0%"></div>
+          </div>
+
+          <!-- Metrics Grid -->
+          <div id="metricsGrid" class="metrics-grid" style="display: none;"></div>
+
+          <!-- Result Content -->
+          <div id="resultContent" class="result-content" style="display: none;">
+            <!-- Explanation Section -->
+            <div class="result-section">
+              <h4><i class="fas fa-info-circle"></i> Explanation</h4>
+              <p id="explanationText"></p>
+            </div>
+
+            <!-- Key Issues Section -->
+            <div class="result-section">
+              <h4><i class="fas fa-exclamation-triangle"></i> Key Issues Found</h4>
+              <ul id="issuesList" class="issue-list"></ul>
+            </div>
+
+            <!-- Evidence Needed Section -->
+            <div class="result-section">
+              <h4><i class="fas fa-search"></i> Evidence Required</h4>
+              <div id="evidenceGrid" class="evidence-grid"></div>
+            </div>
+
+            <!-- Recommendations Section -->
+            <div class="result-section">
+              <h4><i class="fas fa-lightbulb"></i> Recommendations</h4>
+              <p id="recommendationText"></p>
+            </div>
+
+            <!-- Detailed Metrics -->
+            <div id="detailedMetrics" class="result-section" style="display: none;">
+              <h4><i class="fas fa-chart-line"></i> Detailed Analysis</h4>
+              <div id="detailedMetricsContent"></div>
+            </div>
+
+            <!-- Raw JSON View -->
+            <div class="result-section">
+              <h4><i class="fas fa-code"></i> Technical Details</h4>
+              <button class="btn-secondary" onclick="toggleRawData()" style="width: auto;">
+                <i class="fas fa-eye"></i> Toggle Raw Data
+              </button>
+              <pre id="rawData" style="display: none; margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px; font-size: 0.85rem; max-height: 300px; overflow: auto;"></pre>
+            </div>
+          </div>
+
+          <!-- No Results Message -->
+          <div id="noResults" style="text-align: center; padding: 40px; color: #6c757d;">
+            <i class="fas fa-clipboard" style="font-size: 3rem; opacity: 0.3; margin-bottom: 20px;"></i>
+            <h3>No Analysis Yet</h3>
+            <p>Enter health text and click "Analyze Text" to check for misinformation</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Configuration
+    const API_BASE_URL = 'https://krishischemes-api.onrender.com'; // Change this to your API URL
+    let analysisHistory = [];
+    let currentRawData = null;
+
+    // Example texts
+    const examples = {
+      misinfo: "BREAKING: COVID-19 vaccines contain microchips for government tracking! Big Pharma is hiding this from the public! Doctors are being paid to stay silent about vaccine injuries.",
+      reliable: "According to CDC guidelines, COVID-19 vaccines are safe and effective for preventing severe illness and hospitalization. Clinical trials involving tens of thousands of participants demonstrated their safety and efficacy.",
+      cancer: "MIRACLE CURE: Baking soda mixed with maple syrup can cure all cancers overnight! Oncologists hate this simple treatment because it threatens their billion-dollar chemotherapy business.",
+      vaccine: "Vaccines cause autism in children. Multiple independent studies prove this, but the government suppresses the evidence to protect pharmaceutical companies. Natural immunity is always better."
+    };
+
+    // Initialize on load
+    window.addEventListener('load', () => {
+      checkAPIStatus();
+      loadHistory();
+    });
+
+    // Check API status
+    async function checkAPIStatus() {
+      const statusElement = document.getElementById('apiStatus');
+      try {
+        const response = await fetch(`${API_BASE_URL}/health`);
+        const data = await response.json();
+        
+        if (data.status === 'healthy') {
+          statusElement.innerHTML = `
+            <i class="fas fa-circle" style="color: #28a745;"></i>
+            <span>✅ API Healthy | AI Available: ${data.gemini_available ? 'Yes' : 'No'}</span>
+          `;
+          statusElement.className = 'status-indicator status-online';
+        }
+      } catch (error) {
+        statusElement.innerHTML = `
+          <i class="fas fa-circle" style="color: #dc3545;"></i>
+          <span>❌ API Offline | Error: ${error.message}</span>
+        `;
+        statusElement.className = 'status-indicator status-offline';
+      }
+    }
+
+    // Load example text
+    function loadExample(type) {
+      if (examples[type]) {
+        document.getElementById('healthText').value = examples[type];
+        
+        // Highlight active example button
+        document.querySelectorAll('#exampleButtons .option-item').forEach(btn => {
+          btn.classList.remove('active');
+        });
+        event.target.classList.add('active');
+      }
+    }
+
+    // Toggle options
+    function toggleOption(option) {
+      const element = document.getElementById(option + 'Option');
+      element.classList.toggle('active');
+      
+      // Show/hide batch section
+      if (option === 'batch') {
+        const batchSection = document.getElementById('batchSection');
+        batchSection.style.display = element.classList.contains('active') ? 'block' : 'none';
+      }
+    }
+
+    // Clear analysis
+    function clearAnalysis() {
+      document.getElementById('healthText').value = '';
+      document.getElementById('resultHeader').style.display = 'none';
+      document.getElementById('confidenceMeter').style.display = 'none';
+      document.getElementById('metricsGrid').style.display = 'none';
+      document.getElementById('resultContent').style.display = 'none';
+      document.getElementById('noResults').style.display = 'block';
+      document.getElementById('errorMessage').style.display = 'none';
+      currentRawData = null;
+    }
+
+    // Main analysis function
+    async function analyzeHealthText() {
+      const text = document.getElementById('healthText').value.trim();
+      const useAI = document.getElementById('useAIOption').classList.contains('active');
+      const detailed = document.getElementById('detailedOption').classList.contains('active');
+      
+      if (!text || text.length < 10) {
+        showError('Please enter at least 10 characters of health-related text.');
+        return;
+      }
+      
+      // Show loading, hide results
+      showLoading(true);
+      hideError();
+      document.getElementById('noResults').style.display = 'none';
+      
+      try {
+        const formData = new FormData();
+        formData.append('text', text);
+        formData.append('use_ai', useAI);
+        formData.append('detailed_metrics', detailed);
+        
+        const response = await fetch(`${API_BASE_URL}/analyze`, {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.detail || `HTTP ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          displayResults(result);
+          saveToHistory(text, result.analysis);
+        } else {
+          throw new Error('Analysis failed');
+        }
+      } catch (error) {
+        showError(`Analysis failed: ${error.message}`);
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    // Batch analysis
+    async function analyzeBatch() {
+      const batchText = document.getElementById('batchText').value.trim();
+      if (!batchText) {
+        showError('Please enter multiple texts for batch analysis.');
+        return;
+      }
+      
+      const texts = batchText.split('\n').filter(t => t.trim().length > 0);
+      const useAI = document.getElementById('useAIOption').classList.contains('active');
+      
+      showLoading(true);
+      hideError();
+      
+      try {
+        const formData = new FormData();
+        texts.forEach((text, index) => {
+          formData.append('texts', text);
+        });
+        formData.append('use_ai', useAI);
+        
+        const response = await fetch(`${API_BASE_URL}/batch_analyze`, {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const result = await response.json();
+        displayBatchResults(result);
+      } catch (error) {
+        showError(`Batch analysis failed: ${error.message}`);
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    // Display analysis results
+    function displayResults(result) {
+      currentRawData = result;
+      
+      const analysis = result.analysis;
+      const metrics = result.detailed_metrics || {};
+      
+      // Update result header
+      document.getElementById('verdictText').textContent = analysis.verdict;
+      document.getElementById('confidenceText').textContent = `Confidence: ${analysis.confidence_score}%`;
+      
+      // Update risk badge
+      const riskBadge = document.getElementById('riskBadge');
+      riskBadge.textContent = analysis.risk_level.toUpperCase();
+      riskBadge.className = `risk-badge risk-${analysis.risk_level}`;
+      
+      // Update confidence meter
+      const confidenceFill = document.getElementById('confidenceFill');
+      confidenceFill.style.width = `${analysis.confidence_score}%`;
+      confidenceFill.className = `confidence-fill meter-${analysis.risk_level}`;
+      
+      // Update metrics grid
+      if (metrics.overall_risk_score) {
+        const metricsGrid = document.getElementById('metricsGrid');
+        metricsGrid.innerHTML = `
+          <div class="metric-card">
+            <div class="metric-label">Risk Score</div>
+            <div class="metric-value" style="color: ${getRiskColor(analysis.risk_level)}">${Math.round(metrics.overall_risk_score)}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Text Length</div>
+            <div class="metric-value">${analysis.text_length}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Topics</div>
+            <div class="metric-value">${analysis.detected_topics.length}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Source</div>
+            <div class="metric-value">${analysis.analysis_source.split(' ')[0]}</div>
+          </div>
+        `;
+        metricsGrid.style.display = 'grid';
+      }
+      
+      // Update explanation
+      document.getElementById('explanationText').textContent = analysis.explanation;
+      
+      // Update key issues
+      const issuesList = document.getElementById('issuesList');
+      issuesList.innerHTML = analysis.key_issues.map(issue => 
+        `<li>${issue}</li>`
+      ).join('');
+      
+      // Update evidence needed
+      const evidenceGrid = document.getElementById('evidenceGrid');
+      evidenceGrid.innerHTML = analysis.evidence_needed.map(evidence => 
+        `<div class="evidence-item">${evidence}</div>`
+      ).join('');
+      
+      // Update recommendations
+      document.getElementById('recommendationText').textContent = analysis.recommended_action;
+      
+      // Update raw data
+      document.getElementById('rawData').textContent = JSON.stringify(result, null, 2);
+      
+      // Show detailed metrics if available
+      if (metrics.pattern_scores) {
+        const detailedMetrics = document.getElementById('detailedMetrics');
+        detailedMetrics.style.display = 'block';
+        
+        const metricsContent = document.getElementById('detailedMetricsContent');
+        metricsContent.innerHTML = `
+          <div class="metrics-grid">
+            <div class="metric-card">
+              <div class="metric-label">Urgency Score</div>
+              <div class="metric-value">${metrics.pattern_scores.urgency || 0}</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Sensationalism</div>
+              <div class="metric-value">${metrics.pattern_scores.sensationalism || 0}</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Conspiracy Language</div>
+              <div class="metric-value">${metrics.pattern_scores.conspiracy_language || 0}</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">Authority Appeal</div>
+              <div class="metric-value">${metrics.pattern_scores.authority_appeal || 0}</div>
+            </div>
+          </div>
+        `;
+      }
+      
+      // Show all result sections
+      document.getElementById('resultHeader').style.display = 'flex';
+      document.getElementById('confidenceMeter').style.display = 'block';
+      document.getElementById('resultContent').style.display = 'block';
+    }
+
+    // Display batch results
+    function displayBatchResults(result) {
+      // For simplicity, just show summary in a popup
+      alert(`
+        Batch Analysis Complete!
+        
+        Total Texts: ${result.summary.total_texts}
+        Successful: ${result.summary.successful_analyses}
+        Misinformation Found: ${result.summary.misinformation_found}
+        High Risk Texts: ${result.summary.high_risk_texts}
+        Misinformation Rate: ${result.summary.misinformation_rate}%
+        
+        Check console for detailed results.
+      `);
+      
+      console.log('Batch Analysis Results:', result);
+    }
+
+    // Save to history
+    function saveToHistory(text, analysis) {
+      const historyItem = {
+        id: Date.now(),
+        text: text,
+        analysis: analysis,
+        timestamp: new Date().toLocaleString()
+      };
+      
+      analysisHistory.unshift(historyItem);
+      if (analysisHistory.length > 10) {
+        analysisHistory = analysisHistory.slice(0, 10);
+      }
+      
+      localStorage.setItem('healthAnalysisHistory', JSON.stringify(analysisHistory));
+      loadHistory();
+    }
+
+    // Load history
+    function loadHistory() {
+      const savedHistory = localStorage.getItem('healthAnalysisHistory');
+      if (savedHistory) {
+        analysisHistory = JSON.parse(savedHistory);
+      }
+      
+      const historyList = document.getElementById('historyList');
+      if (analysisHistory.length === 0) {
+        historyList.innerHTML = '<p style="color: #6c757d; text-align: center;">No history yet</p>';
+        return;
+      }
+      
+      historyList.innerHTML = analysisHistory.map(item => `
+        <div class="history-item" onclick="loadFromHistory('${item.id}')">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span class="risk-badge risk-${item.analysis.risk_level}" style="font-size: 0.8rem;">
+              ${item.analysis.risk_level.toUpperCase()}
+            </span>
+            <span style="font-size: 0.8rem; color: #6c757d;">${item.timestamp}</span>
+          </div>
+          <div class="preview">${item.text.substring(0, 100)}${item.text.length > 100 ? '...' : ''}</div>
+        </div>
+      `).join('');
+    }
+
+    // Load from history
+    function loadFromHistory(id) {
+      const item = analysisHistory.find(h => h.id.toString() === id);
+      if (item) {
+        document.getElementById('healthText').value = item.text;
+        displayResults({ success: true, analysis: item.analysis });
+      }
+    }
+
+    // Toggle raw data view
+    function toggleRawData() {
+      const rawData = document.getElementById('rawData');
+      rawData.style.display = rawData.style.display === 'none' ? 'block' : 'none';
+    }
+
+    // Show/hide loading
+    function showLoading(show) {
+      document.getElementById('loading').style.display = show ? 'block' : 'none';
+    }
+
+    // Show error message
+    function showError(message) {
+      const errorElement = document.getElementById('errorMessage');
+      errorElement.textContent = message;
+      errorElement.style.display = 'block';
+    }
+
+    // Hide error message
+    function hideError() {
+      document.getElementById('errorMessage').style.display = 'none';
+    }
+
+    // Get color based on risk level
+    function getRiskColor(riskLevel) {
+      const colors = {
+        low: '#28a745',
+        medium: '#ffc107',
+        high: '#dc3545',
+        critical: '#721c24'
+      };
+      return colors[riskLevel] || '#6c757d';
+    }
+  </script>
+</body>
+</html>
