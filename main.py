@@ -644,7 +644,7 @@ def setup_gemini():
         return None, f"API configuration failed: {e}"
 
     # Try available models
-    model_priority = ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-pro"]
+    model_priority = ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite"]
     for model_name in model_priority:
         try:
             model = genai.GenerativeModel(model_name)
