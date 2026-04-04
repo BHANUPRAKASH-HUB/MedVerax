@@ -713,7 +713,7 @@ def analyze_health_text_with_gemini(text: str, detected_topics: List[str], sourc
             "risk_level": string ("low", "medium", "high", "critical"),
             "classification": string ("Reliable", "Low Risk", "Moderate Risk", "High Risk", "Critical"),
             "verdict": string (concise summary),
-            "explanation": string (detailed reasoning, 2-3 sentences),
+            "explanation": string (detailed reasoning, 2 sentences),
             "language_cues": array of strings (specific problematic language patterns),
             "claim_indicators": array of strings (types of claims made),
             "missing_references": array of strings (what evidence is lacking),
